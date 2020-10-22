@@ -30,13 +30,21 @@ def initialize():
 
     crit = torch.nn.NLLLoss(ignore_index=-1)
     segmentation_module = SegmentationModule(net_encoder, net_decoder, crit)
-    segmentation_module.eval()
-    # segmentation_module.cuda()
-    return segmentation_module
+    segmentation_module = segmentation_module.eval()
 
-def leaning_angle(segmentation_module, image):
+    x = torch.rand(3,672,504)
+    output_size = x.shape
+
+    # segmentation_module.cuda()
+    with torch.jit.optimized_execution(True, {'target_device': 'eia:0'}):
+        segmentation_module = torch.jit.trace(segmentation_module, x[None])
+        torch.jit.save(segmentation_module, 'traced.pt')
+#     return segmentation_module
+
+def leaning_angle(image):
+    segmentation_module = torch.jit.load('traced.pt')
     pil_image = PIL.Image.open(image).convert('RGB')
-    # pil_image = PIL.Image.fromarray(numpy.rot90(numpy.array(pil_image), -1))
+    pil_image = PIL.Image.fromarray(numpy.rot90(numpy.array(pil_image), -1))
     pil_image = pil_image.resize((504, 672), PIL.Image.ANTIALIAS)
     # Load and normalize one image as a singleton tensor batch
     pil_to_tensor = torchvision.transforms.Compose([
@@ -47,12 +55,14 @@ def leaning_angle(segmentation_module, image):
     ])
 
     img_original = numpy.array(pil_image)
+
     img_data = pil_to_tensor(pil_image)
     # singleton_batch = {'img_data': img_data[None].cuda()}
     singleton_batch = {'img_data': img_data[None]}
     output_size = img_data.shape[1:]
     with torch.no_grad():
-        scores = segmentation_module(singleton_batch, segSize=output_size)
+#         scores = segmentation_module(singleton_batch, segSize=output_size)
+          scores = segmentation_module(img_data[None])
 
     # Get the predicted scores for each pixel
     _, pred = torch.max(scores, dim=1)
@@ -81,38 +91,37 @@ def leaning_angle(segmentation_module, image):
 
     (vx, vy, x0, y0) = cv2.fitLine(X, cv2.DIST_L12, 0, 0.01, 0.01)
 
-
     d = degrees(atan2(vy, vx))
     if d<0:
-      print(90+d)
+      return 90+d
     else:
-      print(90-d)
+      return 90-d
 
-
-    cropped_copy_hough = cropped.copy()
-    edges = cv2.Canny(cropped_copy_hough,100,200,3)
-    lines = cv2.HoughLines(edges, 1, numpy.pi / 180, 150)
-    X = []
-    if lines is not None:
-      for i in range(0, len(lines)):
-        rho = lines[i][0][0]
-        theta = lines[i][0][1]
-        a = math.cos(theta)
-        b = math.sin(theta)
-        x0 = a * rho
-        y0 = b * rho
-        pt1 = (int(x0 + 1000*(-b)), int(y0 + 1000*(a)))
-        pt2 = (int(x0 - 1000*(-b)), int(y0 - 1000*(a)))
-
-        X.append(list(pt1))
-        X.append(list(pt2))
-
-    X = numpy.vstack(X)
-
-    (vx, vy, x0, y0) = cv2.fitLine(X, cv2.DIST_L12, 0, 0.01, 0.01)
-
-    d = degrees(atan2(vy, vx))
-    if d < 0:
-      print(90+d)
-    else:
-      print(90-d)
+#
+#     cropped_copy_hough = cropped.copy()
+#     edges = cv2.Canny(cropped_copy_hough,100,200,3)
+#     lines = cv2.HoughLines(edges, 1, numpy.pi / 180, 150)
+#     X = []
+#     if lines is not None:
+#       for i in range(0, len(lines)):
+#         rho = lines[i][0][0]
+#         theta = lines[i][0][1]
+#         a = math.cos(theta)
+#         b = math.sin(theta)
+#         x0 = a * rho
+#         y0 = b * rho
+#         pt1 = (int(x0 + 1000*(-b)), int(y0 + 1000*(a)))
+#         pt2 = (int(x0 - 1000*(-b)), int(y0 - 1000*(a)))
+#
+#         X.append(list(pt1))
+#         X.append(list(pt2))
+#
+#     X = numpy.vstack(X)
+#
+#     (vx, vy, x0, y0) = cv2.fitLine(X, cv2.DIST_L12, 0, 0.01, 0.01)
+#
+#     d = degrees(atan2(vy, vx))
+#     if d < 0:
+#       print(90+d)
+#     else:
+#       print(90-d)
