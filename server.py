@@ -15,4 +15,4 @@ def home():
     angle = leaning_angle(image)
     return flask.Response(response=str(angle), status=200, mimetype="application/json")
 
-app.run(host='0.0.0.0', port=80)
+app.run(host='0.0.0.0', port=8081)
