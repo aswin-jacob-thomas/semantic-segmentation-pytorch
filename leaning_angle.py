@@ -36,7 +36,7 @@ def initialize():
     output_size = x.shape
 
     # segmentation_module.cuda()
-    with torch.jit.optimized_execution(True):
+    with torch.jit.optimized_execution(True, {'target_device': 'eia:0'}):
         segmentation_module = torch.jit.trace(segmentation_module, x[None])
 #         torch.jit.save(segmentation_module, 'traced.pt')
     return segmentation_module
@@ -62,7 +62,8 @@ def leaning_angle(segmentation_module, image):
     output_size = img_data.shape[1:]
     with torch.no_grad():
 #         scores = segmentation_module(singleton_batch, segSize=output_size)
-          scores = segmentation_module(img_data[None])
+        with torch.jit.optimized_execution(True, {'target_device': 'eia:0'}):
+            scores = segmentation_module(img_data[None])
 
     # Get the predicted scores for each pixel
     _, pred = torch.max(scores, dim=1)
