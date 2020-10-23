@@ -6,6 +6,7 @@ from mit_semseg.utils import colorEncode
 import cv2
 import math
 from math import atan2, degrees
+import time
 
 def initialize():
     colors = scipy.io.loadmat('data/color150.mat')['colors']
@@ -36,8 +37,9 @@ def initialize():
     output_size = x.shape
 
     # segmentation_module.cuda()
-    with torch.jit.optimized_execution(True, {'target_device': 'eia:0'}):
-        segmentation_module = torch.jit.trace(segmentation_module, x[None])
+    with torch.no_grad():
+        with torch.jit.optimized_execution(True, {'target_device': 'eia:0'}):
+            segmentation_module = torch.jit.trace(segmentation_module, x[None])
 #         torch.jit.save(segmentation_module, 'traced.pt')
     return segmentation_module
 
@@ -60,11 +62,13 @@ def leaning_angle(segmentation_module, image):
     # singleton_batch = {'img_data': img_data[None].cuda()}
     singleton_batch = {'img_data': img_data[None]}
     output_size = img_data.shape[1:]
+    start = time.time()
     with torch.no_grad():
 #         scores = segmentation_module(singleton_batch, segSize=output_size)
         with torch.jit.optimized_execution(True, {'target_device': 'eia:0'}):
             scores = segmentation_module(img_data[None])
-
+    end = time.time()
+    print("The total time took - ", (end-start)*1000)
     # Get the predicted scores for each pixel
     _, pred = torch.max(scores, dim=1)
     pred = pred.cpu()[0].numpy()
