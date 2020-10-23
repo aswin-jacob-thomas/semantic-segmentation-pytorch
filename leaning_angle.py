@@ -36,13 +36,13 @@ def initialize():
     output_size = x.shape
 
     # segmentation_module.cuda()
-    with torch.jit.optimized_execution(True, {'target_device': 'eia:0'}):
+    with torch.jit.optimized_execution(True):
         segmentation_module = torch.jit.trace(segmentation_module, x[None])
-        torch.jit.save(segmentation_module, 'traced.pt')
-#     return segmentation_module
+#         torch.jit.save(segmentation_module, 'traced.pt')
+    return segmentation_module
 
-def leaning_angle(image):
-    segmentation_module = torch.jit.load('traced.pt')
+def leaning_angle(segmentation_module, image):
+#     segmentation_module = torch.jit.load('traced.pt')
     pil_image = PIL.Image.open(image).convert('RGB')
     pil_image = PIL.Image.fromarray(numpy.rot90(numpy.array(pil_image), -1))
     pil_image = pil_image.resize((504, 672), PIL.Image.ANTIALIAS)
